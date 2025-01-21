@@ -4,45 +4,65 @@
     <title>Surveillance de la qualité de l'air</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
-        #data-container { margin-top: 20px; display: flex; justify-content: center; gap: 20px; }
-        .data-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
-        canvas { max-width: 600px; margin-top: 20px; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+        #data-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .data-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            width: 80%;
+            margin: 20px auto;
+        }
     </style>
 </head>
 <body>
     <h1>Surveillance de la qualité de l'air</h1>
     <button onclick="fetchData()">Actualiser les données</button>
+    
     <div id="data-container">
         <div class="data-box"><h3>CO2</h3><p id="co2">-- ppm</p></div>
         <div class="data-box"><h3>Température</h3><p id="temperature">-- °C</p></div>
         <div class="data-box"><h3>Humidité</h3><p id="humidity">-- %</p></div>
     </div>
-    <canvas id="chart"></canvas>
+
+    <!-- Trois Graphes -->
+    <div class="chart-container"><canvas id="chartCO2"></canvas></div>
+    <div class="chart-container"><canvas id="chartTemp"></canvas></div>
+    <div class="chart-container"><canvas id="chartHumidity"></canvas></div>
 
     <script>
         const url = "https://api.tago.io/data";
         const token = "6cca02c5-85b8-44e8-b676-0b73999f029f"; // Remplacez par votre Token TagoIO
 
-        let chart;
         let labels = [];
         let co2Data = [];
         let temperatureData = [];
         let humidityData = [];
+
+        let chartCO2, chartTemp, chartHumidity;
 
         function decodePayload(hexString) {
             let bytes = hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16));
             let co2 = (bytes[0] << 8) | bytes[1];  // CO₂ (ppm)
             let temp = ((bytes[2] << 8) | bytes[3]) / 100;  // Température (°C)
             let hum = ((bytes[4] << 8) | bytes[5]) / 100;  // Humidité (%)
-
             return { co2, temp, hum };
         }
 
         async function fetchData() {
             console.log("⏳ Récupération des données depuis TagoIO...");
-            console.log("🔑 Token utilisé :", token);
-
             try {
                 const response = await fetch(url, {
                     method: "GET",
@@ -62,7 +82,7 @@
                     document.getElementById("temperature").innerText = temp + " °C";
                     document.getElementById("humidity").innerText = hum + " %";
 
-                    updateChart(co2, temp, hum);
+                    updateCharts(co2, temp, hum);
                 } else {
                     document.getElementById("co2").innerText = "Pas de données";
                     document.getElementById("temperature").innerText = "Pas de données";
@@ -70,13 +90,10 @@
                 }
             } catch (error) {
                 console.error("❌ Erreur :", error);
-                document.getElementById("co2").innerText = "Erreur API";
-                document.getElementById("temperature").innerText = "Erreur API";
-                document.getElementById("humidity").innerText = "Erreur API";
             }
         }
 
-        function updateChart(co2, temp, hum) {
+        function updateCharts(co2, temp, hum) {
             let now = new Date().toLocaleTimeString();
             labels.push(now);
             co2Data.push(co2);
@@ -90,33 +107,43 @@
                 humidityData.shift();
             }
 
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = co2Data;
-            chart.data.datasets[1].data = temperatureData;
-            chart.data.datasets[2].data = humidityData;
-            chart.update();
+            chartCO2.data.labels = labels;
+            chartCO2.data.datasets[0].data = co2Data;
+            chartCO2.update();
+
+            chartTemp.data.labels = labels;
+            chartTemp.data.datasets[0].data = temperatureData;
+            chartTemp.update();
+
+            chartHumidity.data.labels = labels;
+            chartHumidity.data.datasets[0].data = humidityData;
+            chartHumidity.update();
         }
 
-        function setupChart() {
-            const ctx = document.getElementById("chart").getContext("2d");
-            chart = new Chart(ctx, {
+        function setupCharts() {
+            const ctxCO2 = document.getElementById("chartCO2").getContext("2d");
+            chartCO2 = new Chart(ctxCO2, {
                 type: "line",
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: "CO2 (ppm)", borderColor: "red", data: [], fill: false },
-                        { label: "Température (°C)", borderColor: "blue", data: [], fill: false },
-                        { label: "Humidité (%)", borderColor: "green", data: [], fill: false }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: { y: { beginAtZero: false } }
-                }
+                data: { labels: [], datasets: [{ label: "CO2 (ppm)", borderColor: "red", data: [], fill: false }] },
+                options: { responsive: true, scales: { y: { beginAtZero: false } } }
+            });
+
+            const ctxTemp = document.getElementById("chartTemp").getContext("2d");
+            chartTemp = new Chart(ctxTemp, {
+                type: "line",
+                data: { labels: [], datasets: [{ label: "Température (°C)", borderColor: "blue", data: [], fill: false }] },
+                options: { responsive: true, scales: { y: { beginAtZero: false } } }
+            });
+
+            const ctxHumidity = document.getElementById("chartHumidity").getContext("2d");
+            chartHumidity = new Chart(ctxHumidity, {
+                type: "line",
+                data: { labels: [], datasets: [{ label: "Humidité (%)", borderColor: "green", data: [], fill: false }] },
+                options: { responsive: true, scales: { y: { beginAtZero: false } } }
             });
         }
 
-        setupChart();
+        setupCharts();
         fetchData();
         setInterval(fetchData, 10000);
     </script>
